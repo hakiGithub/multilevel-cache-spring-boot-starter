@@ -20,77 +20,78 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class RedisCaffeineCacheManager implements CacheManager {
 
-	private ConcurrentMap<String, Cache> cacheMap = new ConcurrentHashMap<String, Cache>();
+    private ConcurrentMap<String, Cache> cacheMap = new ConcurrentHashMap<String, Cache>();
 
-	private CacheConfigProperties cacheConfigProperties;
+    private CacheConfigProperties cacheConfigProperties;
 
-	private RedisTemplate<Object, Object> stringKeyRedisTemplate;
+    private RedisTemplate<Object, Object> stringKeyRedisTemplate;
 
-	private boolean dynamic;
+    private boolean dynamic;
 
-	private Set<String> cacheNames;
+    private Set<String> cacheNames;
 
-	public RedisCaffeineCacheManager(CacheConfigProperties cacheConfigProperties,
-			RedisTemplate<Object, Object> stringKeyRedisTemplate) {
-		super();
-		this.cacheConfigProperties = cacheConfigProperties;
-		this.stringKeyRedisTemplate = stringKeyRedisTemplate;
-		this.dynamic = cacheConfigProperties.isDynamic();
-		this.cacheNames = cacheConfigProperties.getCacheNames();
-	}
+    public RedisCaffeineCacheManager(CacheConfigProperties cacheConfigProperties,
+                                     RedisTemplate<Object, Object> stringKeyRedisTemplate) {
+        super();
+        this.cacheConfigProperties = cacheConfigProperties;
+        this.stringKeyRedisTemplate = stringKeyRedisTemplate;
+        this.dynamic = cacheConfigProperties.isDynamic();
+        this.cacheNames = cacheConfigProperties.getCacheNames();
+    }
 
-	@Override
-	public Cache getCache(String name) {
-		Cache cache = cacheMap.get(name);
-		if (cache != null) {
-			return cache;
-		}
-		if (!dynamic && !cacheNames.contains(name)) {
-			return cache;
-		}
+    @Override
+    public Cache getCache(String name) {
+        Cache cache = cacheMap.get(name);
+        if (cache != null) {
+            return cache;
+        }
+        if (!dynamic && !cacheNames.contains(name)) {
+            return cache;
+        }
 
-		cache = new RedisCaffeineCache(name, stringKeyRedisTemplate, caffeineCache(), cacheConfigProperties);
-		Cache oldCache = cacheMap.putIfAbsent(name, cache);
-		log.debug("create cache instance, the cache name is : {}", name);
-		return oldCache == null ? cache : oldCache;
-	}
+        cache = new RedisCaffeineCache(name, stringKeyRedisTemplate, caffeineCache(), cacheConfigProperties);
+        Cache oldCache = cacheMap.putIfAbsent(name, cache);
+        log.debug("create cache instance, the cache name is : {}", name);
+        return oldCache == null ? cache : oldCache;
+    }
 
-	public com.github.benmanes.caffeine.cache.Cache<Object, Object> caffeineCache() {
-		Caffeine<Object, Object> cacheBuilder = Caffeine.newBuilder();
-		if (cacheConfigProperties.getCaffeine().getExpireAfterAccess() > 0) {
-			cacheBuilder.expireAfterAccess(cacheConfigProperties.getCaffeine().getExpireAfterAccess(),
-					TimeUnit.MILLISECONDS);
-		}
-		if (cacheConfigProperties.getCaffeine().getExpireAfterWrite() > 0) {
-			cacheBuilder.expireAfterWrite(cacheConfigProperties.getCaffeine().getExpireAfterWrite(),
-					TimeUnit.MILLISECONDS);
-		}
-		if (cacheConfigProperties.getCaffeine().getInitialCapacity() > 0) {
-			cacheBuilder.initialCapacity(cacheConfigProperties.getCaffeine().getInitialCapacity());
-		}
-		if (cacheConfigProperties.getCaffeine().getMaximumSize() > 0) {
-			cacheBuilder.maximumSize(cacheConfigProperties.getCaffeine().getMaximumSize());
-		}
-		if (cacheConfigProperties.getCaffeine().getRefreshAfterWrite() > 0) {
-			cacheBuilder.refreshAfterWrite(cacheConfigProperties.getCaffeine().getRefreshAfterWrite(),
-					TimeUnit.MILLISECONDS);
-		}
-		return cacheBuilder.build();
-	}
+    public com.github.benmanes.caffeine.cache.Cache<Object, Object> caffeineCache() {
+        Caffeine<Object, Object> cacheBuilder = Caffeine.from(cacheConfigProperties.getCaffeine().getSpec());
+        if (cacheConfigProperties.getCaffeine().getExpireAfterAccess() > 0) {
+            cacheBuilder.expireAfterAccess(cacheConfigProperties.getCaffeine().getExpireAfterAccess(),
+                    TimeUnit.MILLISECONDS);
+        }
+        if (cacheConfigProperties.getCaffeine().getExpireAfterWrite() > 0) {
+            cacheBuilder.expireAfterWrite(cacheConfigProperties.getCaffeine().getExpireAfterWrite(),
+                    TimeUnit.MILLISECONDS);
+        }
+        if (cacheConfigProperties.getCaffeine().getInitialCapacity() > 0) {
+            cacheBuilder.initialCapacity(cacheConfigProperties.getCaffeine().getInitialCapacity());
+        }
+        if (cacheConfigProperties.getCaffeine().getMaximumSize() > 0) {
+            cacheBuilder.maximumSize(cacheConfigProperties.getCaffeine().getMaximumSize());
+        }
+        if (cacheConfigProperties.getCaffeine().getRefreshAfterWrite() > 0) {
+            cacheBuilder.refreshAfterWrite(cacheConfigProperties.getCaffeine().getRefreshAfterWrite(),
+                    TimeUnit.MILLISECONDS);
+        }
 
-	@Override
-	public Collection<String> getCacheNames() {
-		return this.cacheNames;
-	}
+        return cacheBuilder.build();
+    }
 
-	public void clearLocal(String cacheName, Object key) {
-		Cache cache = cacheMap.get(cacheName);
-		if (cache == null) {
-			return;
-		}
+    @Override
+    public Collection<String> getCacheNames() {
+        return this.cacheNames;
+    }
 
-		RedisCaffeineCache redisCaffeineCache = (RedisCaffeineCache) cache;
-		redisCaffeineCache.clearLocal(key);
-	}
+    public void clearLocal(String cacheName, Object key) {
+        Cache cache = cacheMap.get(cacheName);
+        if (cache == null) {
+            return;
+        }
+
+        RedisCaffeineCache redisCaffeineCache = (RedisCaffeineCache) cache;
+        redisCaffeineCache.clearLocal(key);
+    }
 
 }

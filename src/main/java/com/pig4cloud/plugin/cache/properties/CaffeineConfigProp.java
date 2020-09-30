@@ -36,4 +36,8 @@ public class CaffeineConfigProp {
 	 */
 	private long maximumSize;
 
+	/**
+	 * 配置项
+	 */
+	private String spec;
 }
